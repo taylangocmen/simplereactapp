@@ -18,7 +18,7 @@ var Tweet = React.createClass({
                             <h4>{rets} <button type="button" onClick={()=>handleRetweet(id)}> Retweet </button></h4>
                         </td>
                         <td>
-                            <h4>{rets+reps+favs} <button type="button" onClick={()=>handleOther(id)}> Other </button></h4>
+                            <h4><button type="button" onClick={()=>handleOther(id)}> Other </button></h4>
                         </td>
                     </tr>
                 </div>
@@ -73,11 +73,11 @@ var TweetBox = React.createClass({
         _.mapObject(tweets, function(val, key){
             if(val.id === tweetID){
                 if(property != 'all'){
-                    val.property += 1;
+                    val[property] = + val[property] + 1;
                 } else {
-                    val.reps += 1;
-                    val.favs += 1;
-                    val.rets += 1;
+                    val.reps = + val.reps + 1;
+                    val.favs = + val.favs + 1;
+                    val.rets = + val.rets + 1;
                 }
             }
             return val;
