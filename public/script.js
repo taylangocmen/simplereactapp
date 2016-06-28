@@ -1,210 +1,240 @@
+var timeConverter = (UNIX_timestamp) => {
+  var a = new Date(UNIX_timestamp);
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var year = a.getFullYear();
+  var month = months[a.getMonth()];
+  var date = a.getDate();
+  var hour = a.getHours();
+
+  var min = a.getMinutes();
+  min = (min.toString().length === 1) ? ('0'+min) : min;
+
+  var sec = a.getSeconds();
+  sec = (sec.toString().length === 1) ? ('0'+sec) : sec;
+
+  var time = date + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;
+  return time;
+};
+
 var Tweet = React.createClass({
 
-    render: function() {
-        const {id, text, reps, favs, rets, handleReply, handleFavorite, handleRetweet, handleOther} = this.props;
-        return (
-                <div className="tweet">
-                    <tr>
-                        <h3>{text}</h3>
-                    </tr>
-                    <tr>
-                        <td>
-                            <h4>{reps} <button type="button" onClick={()=>handleReply(id)}> Reply </button></h4>
-                        </td>
-                        <td>
-                            <h4>{favs} <button type="button" onClick={()=>handleFavorite(id)}> Favorite </button></h4>
-                        </td>
-                        <td>
-                            <h4>{rets} <button type="button" onClick={()=>handleRetweet(id)}> Retweet </button></h4>
-                        </td>
-                        <td>
-                            <h4><button type="button" onClick={()=>handleOther(id)}> Other </button></h4>
-                        </td>
-                    </tr>
-                </div>
-        );
-    }
+  render: function () {
+    const {id, text, reps, favs, rets, handleReply, handleFavorite, handleRetweet, handleOther} = this.props;
+    return (
+      <table className="tweet">
+        <tbody>
+          <tr className="tweetdate">
+            Anon @ {timeConverter(id)}
+          </tr>
+          <tr className="tweettext">
+            {text}
+          </tr>
+        </tbody>
+        <tbody>
+          <tr className="tweetbuttons">
+            <td>
+              {reps}<button type="button" onClick={()=>handleReply(id)}> Reply</button>
+            </td>
+            <td>
+              {favs}<button type="button" onClick={()=>handleFavorite(id)}> Favorite</button>
+            </td>
+            <td>
+              {rets}<button type="button" onClick={()=>handleRetweet(id)}> Retweet</button>
+            </td>
+            <td>
+              <button type="button" onClick={()=>handleOther(id)}> Other</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  }
 });
 
 var TweetBox = React.createClass({
 
-    loadTweetsFromFile: function() {
-        const {url} = this.props;
-        $.ajax({
-            url: url,
-            dataType: 'json',
-            cache: false,
-            success: function(data) {
-                this.setState({data: data});
-            }.bind(this),
-            error: function(xhr, status, err) {
-                console.error(url, status, err.toString());
-            }.bind(this)
-        });
-    },
+  loadTweetsFromFile: function () {
+    const {url} = this.props;
+    $.ajax({
+      url: url,
+      dataType: 'json',
+      cache: false,
+      success: (data) => {
+        this.setState({data: data});
+      },
+      error: (xhr, status, err) => {
+        console.error(url, status, err.toString());
+      }
+    });
+  },
 
-    handleTweetSubmit: function(tweet) {
-        const {url} = this.props;
+  handleTweetSubmit: function (text) {
+    const {url} = this.props;
+    var tweets = this.state.data;
+    var tweet = {
+      text: text,
+      id: Date.now(),
+      favs: 0,
+      rets: 0,
+      reps: 0
+    };
 
-        var tweets = this.state.data;
-        tweet.id = Date.now();
-        tweet.favs = 0;
-        tweet.rets = 0;
-        tweet.reps = 0;
-        var newTweets = tweets.concat([tweet]);
-        this.setState({data: newTweets});
-        $.ajax({
-            url: url,
-            dataType: 'json',
-            type: 'POST',
-            data: tweet,
-            success: function(data) {
-                this.setState({data: data});
-            }.bind(this),
-            error: function(xhr, status, err) {
-                this.setState({data: tweets});
-                console.error(url, status, err.toString());
-            }.bind(this)
-        });
-    },
+    var newTweets = tweets.concat([tweet]);
+    this.setState({data: newTweets});
+    $.ajax({
+      url: url,
+      dataType: 'json',
+      type: 'POST',
+      data: tweet,
+      success: (data) => {
+        this.setState({data: data});
+      },
+      error: (xhr, status, err) => {
+        this.setState({data: tweets});
+        console.error(url, status, err.toString());
+      }
+    });
+  },
 
-    handleUpdate: function (tweetID, property) {
-        var tweets = this.state.data;
-        _.mapObject(tweets, function(val, key){
-            if(val.id === tweetID){
-                if(property != 'all'){
-                    val[property] = + val[property] + 1;
-                } else {
-                    val.reps = + val.reps + 1;
-                    val.favs = + val.favs + 1;
-                    val.rets = + val.rets + 1;
-                }
-            }
-            return val;
-        });
-        this.setState(tweets);
-    },
+  handleUpdate: function (tweetID, property) {
 
-    handleReply: function(tweetID){
-        this.handleUpdate(tweetID, 'reps');
-    },
+    var newTweets = this.state.data.map((tweet) => {
+      if(tweet.id === tweetID){
+        if(property === 'all'){
+          return Object.assign({}, tweet,
+            {reps: +tweet.reps + 1,
+              favs: +tweet.favs + 1,
+              rets: +tweet.rets + 1});
+        } else {
+          return Object.assign({}, tweet, {[property]: +tweet[property] + 1});
+        }
+      } else {
+        return Object.assign({}, tweet, {});
+      }
+    });
+    this.setState({data: newTweets});
+  },
 
-    handleFavorite: function(tweetID){
-        this.handleUpdate(tweetID, 'favs');
-    },
-    handleRetweet: function(tweetID){
-        this.handleUpdate(tweetID, 'rets');
-    },
+  handleReply: function (tweetID) {
+    this.handleUpdate(tweetID, 'reps');
+  },
 
-    handleOther: function(tweetID){
-        this.handleUpdate(tweetID, 'all');
-    },
+  handleFavorite: function (tweetID) {
+    this.handleUpdate(tweetID, 'favs');
+  },
+  handleRetweet: function (tweetID) {
+    this.handleUpdate(tweetID, 'rets');
+  },
 
-    getInitialState: function() {
-        return {data: []};
-    },
+  handleOther: function (tweetID) {
+    this.handleUpdate(tweetID, 'all');
+  },
 
-    componentDidMount: function() {
-        this.loadTweetsFromFile();
-    },
+  getInitialState: function () {
+    return {data: []};
+  },
 
-    render: function() {
-        return (
-            <div className="tweetBox" >
-                <h2>Tweets</h2>
-                <TweetList
-                    data={this.state.data}
-                    handleReply={this.handleReply}
-                    handleFavorite={this.handleFavorite}
-                    handleRetweet={this.handleRetweet}
-                    handleOther={this.handleOther}
-                />
-                <TweetForm
-                    onTweetSubmit={this.handleTweetSubmit}
-                />
-            </div>
-        );
-    }
+  componentDidMount: function () {
+    this.loadTweetsFromFile();
+  },
+
+  render: function () {
+    return (
+      <div className="tweetBox">
+        <h2>Tweets</h2>
+        <TweetList
+          data={this.state.data}
+          handleReply={this.handleReply}
+          handleFavorite={this.handleFavorite}
+          handleRetweet={this.handleRetweet}
+          handleOther={this.handleOther}
+        />
+        <TweetForm
+          onTweetSubmit={this.handleTweetSubmit}
+        />
+      </div>
+    );
+  }
 });
 
 var TweetList = React.createClass({
 
-    render: function() {
-        const {handleReply, handleFavorite, handleRetweet, handleOther} = this.props;
-        var tweetNodes = this.props.data.map(function(tweet) {
-            const {id, text, reps, favs, rets} = tweet;
+  render: function () {
+    const {handleReply, handleFavorite, handleRetweet, handleOther} = this.props;
+    var tweetNodes = this.props.data.map((tweet) => {
+      const {id, text, reps, favs, rets} = tweet;
 
-            return (
-                <Tweet
-                    key={id} id={id} text={text} favs={favs} reps={reps} rets={rets}
-                    handleReply={handleReply}
-                    handleFavorite={handleFavorite}
-                    handleRetweet={handleRetweet}
-                    handleOther={handleOther}
-                />
-            );
-        });
-        return (
-            <div className="tweetList" >
-                {tweetNodes}
-            </div>
-        );
-    }
+      return (
+        <Tweet
+          key={id} id={id} text={text} favs={favs} reps={reps} rets={rets}
+          handleReply={handleReply}
+          handleFavorite={handleFavorite}
+          handleRetweet={handleRetweet}
+          handleOther={handleOther}
+        />
+      );
+    });
+    return (
+      <div className="tweetList">
+        {tweetNodes}
+      </div>
+    );
+  }
 });
 
 var TweetForm = React.createClass({
-    getInitialState: function() {
-        return {text: ''};
-    },
-    handleTextChange: function(e) {
-        this.setState({text: e.target.value});
-    },
-    handleSubmit: function(e) {
-        e.preventDefault();
-        var text = this.state.text.trim();
-        if (!text) {
-            return;
-        }
-        this.props.onTweetSubmit({text: text});
-        this.setState({text: ''});
-    },
-    render: function() {
-        return (
-            <form className="tweetForm" onSubmit={this.handleSubmit}>
-                <input
-                    type="text"
-                    placeholder="Start typing..."
-                    value={this.state.text}
-                    onChange={this.handleTextChange}
-                />
-                <input type="submit" value="Tweet!" />
-            </form>
-        );
+  getInitialState: function () {
+    return {text: ''};
+  },
+  handleTextChange: function (e) {
+    this.setState({text: e.target.value});
+  },
+  handleSubmit: function (e) {
+    e.preventDefault();
+    var text = this.state.text.trim();
+    if (!text) {
+      return;
     }
+    this.props.onTweetSubmit(text);
+    this.setState({text: ''});
+  },
+  render: function () {
+    return (
+      <form className="tweetForm" onSubmit={this.handleSubmit}>
+        <input
+          type="text"
+          placeholder="Start typing..."
+          value={this.state.text}
+          onChange={this.handleTextChange}
+        />
+        <input type="submit" value="Tweet!"/>
+      </form>
+    );
+  }
 });
 
 var App = React.createClass({
-    render: function() {
-        return (
-            <div>
-                <div className='row'>
-                    <h1>Twitter Clone</h1>
-                </div>
-                <div className='row'>
-                    <div className='three columns'>
-                        <h6>Drop down menu</h6>
-                    </div>
-                    <div className='nine columns'>
-                        <TweetBox url="/api/tweets" pollInterval="{2000}"/>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+  render: function () {
+    return (
+      <div>
+        <div className='row'>
+          <h1>Twitter Clone</h1>
+        </div>
+        <div className='row'>
+          <div className='three columns'>
+            <h6>Drop down menu</h6>
+          </div>
+          <div className='nine columns'>
+            <TweetBox url="/api/tweets" pollInterval="{2000}"/>
+          </div>
+        </div>
+      </div>
+    );
+  }
 });
 
 
 ReactDOM.render(
-    <App />,
-    document.getElementById('app')
+  <App />,
+  document.getElementById('app')
 );
